@@ -487,7 +487,7 @@ class FeishuExporter:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         access_token = self.get_access_token()
-        domain = "larksuite.com" if self.is_lark else "my.feishu.cn"
+        domain = "feishu" if self.is_lark else "larksuite"
 
         # 解析输入：支持 URL 或 space_id
         space_id = space_id_or_url
