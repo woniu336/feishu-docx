@@ -158,7 +158,11 @@ class MediaAPI(SubModule):
                     f"space/api/box/stream/download/v2/cover/{file_token}"
                 )
                 try:
-                    direct_response = httpx.get(direct_url, timeout=30.0)
+                    direct_response = httpx.get(
+                        direct_url,
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        timeout=30.0,
+                    )
                     if direct_response.status_code == 200:
                         file_path = self.temp_dir / f"{file_token}{extension}"
                         file_path.write_bytes(direct_response.content)
