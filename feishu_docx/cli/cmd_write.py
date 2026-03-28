@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 # =====================================================
 # @File   ：cmd_write.py
-# @Date   ：2026/02/01 19:15
+# @Date   ：2026/03/28 10:35
 # @Author ：leemysw
 # 2026/02/01 19:15   Create - 从 main.py 拆分
 # 2026/03/02 10:39   Add wechat import into create command
+# 2026/03/28 10:35   Add native markdown convert switch for create and write
 # =====================================================
 """
 [INPUT]: 依赖 typer, feishu_docx.core.writer, feishu_docx.core.exporter
@@ -66,6 +67,11 @@ def create(
         app_secret: Optional[str] = typer.Option(None, "--app-secret", help="飞书应用 App Secret"),
         auth_mode: Optional[str] = typer.Option(None, "--auth-mode", help="认证模式: tenant / oauth"),
         lark: bool = typer.Option(False, "--lark", help="使用 Lark (海外版)"),
+        native: bool = typer.Option(
+            False,
+            "--native",
+            help="使用飞书原生 Markdown 转换（可能存在顺序不稳定问题）",
+        ),
 ):
     """
     [green]▶[/] 创建飞书文档
@@ -129,6 +135,7 @@ def create(
                     file_path=md_path,
                     folder_token=normalize_folder_token(folder),
                     user_access_token=access_token,
+                    use_native_api=native,
                 )
 
             console.print(Panel(
@@ -148,6 +155,7 @@ def create(
             file_path=file,
             folder_token=normalize_folder_token(folder),
             user_access_token=access_token,
+            use_native_api=native,
         )
 
         console.print(Panel(
@@ -196,6 +204,11 @@ def write(
         app_secret: Optional[str] = typer.Option(None, "--app-secret", help="飞书应用 App Secret"),
         auth_mode: Optional[str] = typer.Option(None, "--auth-mode", help="认证模式: tenant / oauth"),
         lark: bool = typer.Option(False, "--lark", help="使用 Lark (海外版)"),
+        native: bool = typer.Option(
+            False,
+            "--native",
+            help="使用飞书原生 Markdown 转换（可能存在顺序不稳定问题）",
+        ),
 ):
     """
     [green]▶[/] 向飞书文档追加 Markdown 内容
@@ -243,6 +256,7 @@ def write(
             content=content,
             file_path=file,
             user_access_token=access_token,
+            use_native_api=native,
         )
 
         console.print(Panel(f"✅ 写入成功! 添加了 {len(blocks)} 个 Block", border_style="green"))

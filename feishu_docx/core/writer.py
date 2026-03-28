@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # =====================================================
 # @File   ：writer.py
-# @Date   ：2026/03/11 11:20
+# @Date   ：2026/03/28 10:20
 # @Author ：leemysw
 # 2026/01/18 17:55   Create
 # 2026/01/28 10:20   Add image refill pipeline
@@ -11,6 +11,7 @@
 # 2026/01/28 13:10   Fill table cells after creation
 # 2026/01/28 13:25   Fetch table cell blocks on demand
 # 2026/03/11 11:20   Fix nested list recursion and table chunk creation
+# 2026/03/28 10:20   Default to local markdown conversion for deterministic order
 # =====================================================
 """
 飞书文档写入器
@@ -274,6 +275,7 @@ class FeishuWriter:
             file_path: Optional[Union[str, Path]] = None,
             folder_token: Optional[str] = None,
             user_access_token: str = "",
+            use_native_api: bool = False,
     ) -> Dict:
         """
         创建文档并写入 Markdown 内容
@@ -284,6 +286,7 @@ class FeishuWriter:
             file_path: Markdown 文件路径（与 content 二选一）
             folder_token: 目标文件夹 token
             user_access_token: 用户访问凭证
+            use_native_api: 是否使用飞书原生 API 转换
 
         Returns:
             包含 document_id, url 的字典
@@ -299,6 +302,7 @@ class FeishuWriter:
                 content=content,
                 file_path=file_path,
                 user_access_token=user_access_token,
+                use_native_api=use_native_api,
             )
 
         return {
@@ -314,7 +318,7 @@ class FeishuWriter:
             file_path: Optional[Union[str, Path]] = None,
             user_access_token: str = "",
             append: bool = True,
-            use_native_api: bool = True,
+            use_native_api: bool = False,
     ) -> List[Dict]:
         """
         向文档写入 Markdown 内容
@@ -325,7 +329,7 @@ class FeishuWriter:
             file_path: Markdown 文件路径
             user_access_token: 用户访问凭证
             append: True 追加到末尾，False 清空后写入
-            use_native_api: 使用飞书原生 API 转换（推荐）
+            use_native_api: 是否使用飞书原生 API 转换
 
         Returns:
             创建的 Block 列表
@@ -355,6 +359,7 @@ class FeishuWriter:
                 isinstance(b, dict) and b.get("block_type") == self.converter.BLOCK_TYPE_TABLE
                 for b in local_blocks
             )
+            # 原生转换在部分场景下返回顺序不稳定，默认仅作为显式可选路径使用。
             if local_images or has_nested_lists or has_tables:
                 blocks, image_paths = local_blocks, local_images
                 use_local_blocks = True
