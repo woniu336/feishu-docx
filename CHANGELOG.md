@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.3] - 2026-03-30
+
+### Added
+- 新增 `export-browser` CLI，可在公开文档或提供浏览器会话状态的场景下直接导出 Markdown
+- 新增 Browser-based 导出模块 `feishu_docx.core.browser_export`，按提取器、解析器、资源下载器、导出器拆分目录结构
+- `FeishuExporter` 新增 `export_content_with_browser()` 与 `export_with_browser()` 方法
+
+### Changed
+- Browser-based 导出现在会同时下载图片、附件、白板和图表资源，并将 Markdown 链接替换为本地相对路径
+- Browser-based 导出的文件名清洗逻辑会去除换行等空白字符，避免生成异常路径
+- Browser-based 导出的资源目录结构与默认 `export` 对齐，统一保存到“文档同名目录”根下
+- 公开文档图片的 SDK 降级下载会先访问文档 URL 预热匿名会话，再复用同一 HTTP 客户端请求 cover 资源
+- 默认 `export` 的附件块在存在资源目录时会优先下载到本地，并复用同一匿名会话客户端
+
+### Fixed
+fix issue #22, 默认使用本地 Markdown 转换器
+
 ## [0.2.2] - 2026-03-11
 
 ### Added

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # =====================================================
 # @File   ：main.py
-# @Date   ：2026/03/11 11:45
+# @Date   ：2026/03/30 20:31
 # @Author ：leemysw
 # 2025/01/09 18:30   Create
 # 2026/01/28 11:10   Support folder url parsing
@@ -14,6 +14,7 @@
 # 2026/03/02 11:00   Add export-wechat command
 # 2026/03/02 11:20   Merge wechat import into create --url
 # 2026/03/11 11:45   Add drive management command group
+# 2026/03/30 20:31   Add export-browser command
 # =====================================================
 """
 [INPUT]: 依赖 typer, 各命令子模块
@@ -74,8 +75,10 @@ def main(
 # 注册命令 - 导出
 # ==============================================================================
 from .cmd_export import export, export_wechat, export_wiki_space
+from .cmd_export_browser import export_browser
 
 app.command()(export)
+app.command(name="export-browser")(export_browser)
 app.command(name="export-wechat")(export_wechat)
 app.command(name="export-wiki-space")(export_wiki_space)
 

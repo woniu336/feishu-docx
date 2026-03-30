@@ -6,6 +6,7 @@
 # @Author ：leemysw
 # 2026/02/01 18:40   Refactor - 组合模式重构
 # 2026/02/04 10:15   Add domain-based download fallback
+# 2026/03/30 22:00   Warm document session before cover download fallback
 # =====================================================
 """
 [INPUT]: 依赖 base.py, lark_oapi
@@ -18,6 +19,7 @@ import json
 from pathlib import Path
 from typing import List, Optional
 
+import httpx
 import lark_oapi as lark
 from lark_oapi.api.board.v1 import (
     DownloadAsImageWhiteboardRequest,
@@ -34,6 +36,11 @@ console = get_console()
 
 class MediaAPI(SubModule):
     """图片 & 附件 API"""
+
+    def __init__(self, core):
+        super().__init__(core)
+        self._web_client: Optional[httpx.Client] = None
+        self._warmed_document_url: Optional[str] = None
 
     def upload_image(
             self,
@@ -97,10 +104,9 @@ class MediaAPI(SubModule):
         策略：
         1. 首先尝试直接下载（适用于有权限的文档）
         2. 如果失败（403/401等权限错误或空响应），使用临时下载 URL（适用于只读文档）
-        3. 如果临时 URL 失败，返回拼接的下载 URL（不再下载）
+        3. 如果临时 URL 失败，先预热文档页匿名会话，再尝试 cover 下载
+        4. 如果仍失败，返回拼接的下载 URL（不再下载）
         """
-        import httpx
-
         # 策略1: 尝试直接下载
         request = DownloadMediaRequest.builder().file_token(file_token).build()
         option = self._build_option(access_token)
@@ -125,10 +131,10 @@ class MediaAPI(SubModule):
         # 1. 权限错误码
         # 2. 空响应（code=None, msg=None, response=b''）
         should_fallback = (
-            error_code in permission_errors or
-            (error_code is None and
-             (not hasattr(response, "msg") or response.msg is None) and
-             (not hasattr(response, "raw") or not response.raw or response.raw.content == b''))
+                error_code in permission_errors or
+                (error_code is None and
+                 (not hasattr(response, "msg") or response.msg is None) and
+                 (not hasattr(response, "raw") or not response.raw or response.raw.content == b''))
         )
 
         if should_fallback:
@@ -155,9 +161,25 @@ class MediaAPI(SubModule):
             document_domain = getattr(self._core, "document_domain", None)
             if document_domain:
                 direct_url = (
-                    f"https://internal-api-drive-stream.{document_domain}.com/"
+                    f"https://internal-api-drive-stream.{document_domain}.cn/"
                     f"space/api/box/stream/download/v2/cover/{file_token}"
                 )
+                try:
+                    file_path = self._download_cover_with_document_session(
+                        direct_url=direct_url,
+                        file_token=file_token,
+                        extension=extension,
+                    )
+                    if file_path:
+                        console.print(f"[green]✓ 使用文档会话下载 cover 成功[/green]")
+                        return file_path
+                except Exception as e:
+                    if "401" in str(e) or "403" in str(e):
+                        console.print(
+                            f"[yellow]拼接 URL 访问受限 (权限错误)，无法下载[/yellow], 登录态可能使用URL手动下载图片")
+                    else:
+                        console.print(f"[red]拼接 URL 访问异常: {e}[/red]")
+
                 console.print("[yellow]使用拼接 URL 作为最终降级（不再下载）[/yellow]")
                 return direct_url
             else:
@@ -166,6 +188,149 @@ class MediaAPI(SubModule):
         # 记录最终失败
         self._log_error("drive.v1.media.download", response)
         return None
+
+    def get_file(
+            self,
+            file_token: str,
+            access_token: str,
+            file_name: Optional[str] = None,
+    ) -> Optional[str]:
+        """下载云文档中的附件，失败时回退为可下载 URL。"""
+        request = DownloadMediaRequest.builder().file_token(file_token).build()
+        option = self._build_option(access_token)
+        response: DownloadMediaResponse = self.client.drive.v1.media.download(request, option)
+
+        if response.success():
+            resolved_name = self._resolve_download_name(
+                preferred_name=file_name,
+                response_file_name=getattr(response, "file_name", None),
+                fallback_name=file_token,
+            )
+            file_path = self.temp_dir / resolved_name
+            file_path.write_bytes(response.file.read())
+            return str(file_path)
+
+        tmp_url = self.get_file_download_url(file_token, access_token)
+        if tmp_url:
+            try:
+                file_path = self._download_url_with_document_session(
+                    download_url=tmp_url,
+                    output_name=self._resolve_download_name(
+                        preferred_name=file_name,
+                        response_file_name=None,
+                        fallback_name=file_token,
+                    ),
+                )
+                if file_path:
+                    console.print(f"[green]✓ 使用文档会话下载附件成功[/green]")
+                    return file_path
+            except Exception as e:
+                console.print(f"[red]附件下载异常: {e}[/red]")
+            return tmp_url
+
+        return None
+
+    def _download_cover_with_document_session(
+            self,
+            direct_url: str,
+            file_token: str,
+            extension: str,
+    ) -> Optional[str]:
+        """先访问文档页建立匿名会话，再复用同一客户端下载图片。"""
+        document_url = getattr(self._core, "document_url", None)
+
+        client = self._get_or_create_web_client()
+        self._ensure_document_session_warmed(client, document_url)
+
+        headers = {"Referer": document_url} if document_url else None
+        response = client.get(direct_url, headers=headers, timeout=10.0)
+        if response.status_code != 200:
+            console.print(f"[red]拼接 URL 不可访问 (HTTP {response.status_code})[/red]")
+            return None
+
+        file_path = self.temp_dir / f"{file_token}{extension}"
+        file_path.write_bytes(response.content)
+        return str(file_path)
+
+    def _download_url_with_document_session(self, download_url: str, output_name: str) -> Optional[str]:
+        """使用可复用的网页会话下载任意资源 URL。"""
+        client = self._get_or_create_web_client()
+        document_url = getattr(self._core, "document_url", None)
+        self._ensure_document_session_warmed(client, document_url)
+
+        headers = {"Referer": document_url} if document_url else None
+        response = client.get(download_url, headers=headers, timeout=30.0)
+        if response.status_code != 200:
+            console.print(f"[red]资源 URL 下载失败 (HTTP {response.status_code})[/red]")
+            return None
+
+        file_path = self.temp_dir / output_name
+        file_path.write_bytes(response.content)
+        return str(file_path)
+
+    def _get_or_create_web_client(self) -> httpx.Client:
+        """获取可复用的网页客户端。"""
+        if self._web_client is None:
+            self._web_client = self._create_web_client()
+        return self._web_client
+
+    def _ensure_document_session_warmed(self, client: httpx.Client, document_url: Optional[str]) -> None:
+        """确保当前文档 URL 的匿名会话已完成预热。"""
+        if not document_url:
+            return
+        if self._warmed_document_url == document_url:
+            return
+        self._warmup_document_session(client, document_url)
+        self._warmed_document_url = document_url
+
+    @staticmethod
+    def _create_web_client() -> httpx.Client:
+        """创建模拟浏览器的客户端，用于建立分享页匿名会话。"""
+        return httpx.Client(
+            follow_redirects=True,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/146.0.0.0 Safari/537.36"
+                ),
+                "Accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                    "image/avif,image/webp,image/apng,*/*;q=0.8,"
+                    "application/signed-exchange;v=b3;q=0.7"
+                ),
+                "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            timeout=30.0,
+        )
+
+    @staticmethod
+    def _warmup_document_session(client: httpx.Client, document_url: str) -> None:
+        """访问公开文档页，让浏览器会话 cookie 落到同一个客户端里。"""
+        try:
+            response = client.get(document_url, timeout=20.0)
+            if response.status_code == 200:
+                console.print("[yellow]已预热文档页匿名会话，尝试下载图片...[/yellow]")
+            else:
+                console.print(f"[yellow]预热文档页返回 HTTP {response.status_code}，继续尝试下载图片...[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]预热文档页失败: {e}，继续尝试下载图片...[/yellow]")
+
+    def close(self) -> None:
+        """关闭可复用的网页客户端。"""
+        if self._web_client is not None:
+            self._web_client.close()
+            self._web_client = None
+            self._warmed_document_url = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def get_whiteboard(self, whiteboard_id: str, access_token: str) -> Optional[str]:
         """导出画板为图片"""
@@ -325,3 +490,14 @@ class MediaAPI(SubModule):
                 if item.file_token == file_token:
                     return item.tmp_download_url
         return None
+
+    @staticmethod
+    def _resolve_download_name(
+            preferred_name: Optional[str],
+            response_file_name: Optional[str],
+            fallback_name: str,
+    ) -> str:
+        """解析下载后保存的文件名。"""
+        candidate = preferred_name or response_file_name or fallback_name
+        sanitized = candidate.replace("/", "_").replace("\\", "_").strip(". ")
+        return sanitized or fallback_name

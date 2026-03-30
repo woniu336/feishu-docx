@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # =====================================================
 # @File   ：exporter.py
-# @Date   ：2026/01/28 19:30
+# @Date   ：2026/03/30 20:25
 # @Author ：leemysw
 # 2025/01/09 18:30   Create
 # 2026/01/28 12:05   Use safe console output
@@ -10,6 +10,7 @@
 # 2026/01/28 19:00   Add support for old doc format (/doc/)
 # 2026/01/28 19:30   Support both /sheet/ and /sheets/ URL formats
 # 2026/02/04 10:15   Persist document domain for media fallback
+# 2026/03/30 20:25   Add browser fallback export helpers
 # =====================================================
 """
 [INPUT]: 依赖 feishu_docx.core.parsers 的解析器，依赖 feishu_docx.auth 的认证器
@@ -284,6 +285,58 @@ class FeishuExporter:
             export_board_metadata=export_board_metadata
         )
 
+    def export_content_with_browser(
+            self,
+            url: str,
+            headless: bool = True,
+            timeout_ms: int = 30000,
+            storage_state_path: Optional[str] = None,
+            executable_path: Optional[str] = None,
+    ) -> str:
+        """
+        使用浏览器上下文回退导出 Markdown 字符串。
+
+        适用于公开文档，或用户已通过 storage_state 提供可读会话的场景。
+        """
+        from feishu_docx.core.browser_export import BrowserMarkdownExporter
+
+        exporter = BrowserMarkdownExporter(
+            headless=headless,
+            timeout_ms=timeout_ms,
+            storage_state_path=storage_state_path,
+            executable_path=executable_path,
+        )
+        return exporter.export_content(url)
+
+    def export_with_browser(
+            self,
+            url: str,
+            output_dir: str | Path = ".",
+            filename: Optional[str] = None,
+            headless: bool = True,
+            timeout_ms: int = 30000,
+            storage_state_path: Optional[str] = None,
+            executable_path: Optional[str] = None,
+    ) -> Path:
+        """
+        使用浏览器上下文回退导出 Markdown 文件。
+
+        这是实验能力，不依赖飞书开放平台 Token。
+        """
+        from feishu_docx.core.browser_export import BrowserMarkdownExporter
+
+        exporter = BrowserMarkdownExporter(
+            headless=headless,
+            timeout_ms=timeout_ms,
+            storage_state_path=storage_state_path,
+            executable_path=executable_path,
+        )
+        return exporter.export(
+            url=url,
+            output_dir=output_dir,
+            filename=filename,
+        )
+
     def _parse_document(
             self,
             doc_info: NodeInfo,
@@ -417,12 +470,14 @@ class FeishuExporter:
     def _sanitize_filename(name: str) -> str:
         """清理文件名，移除非法字符"""
         import re
+        name = re.sub(r"\s+", " ", name).strip()
         name = re.sub(r'[<>:"/\\|?*]', '_', name)
         name = name.strip('. ')
         return name or "untitled"
 
     def _set_document_domain_from_url(self, url: str) -> None:
         """从文档 URL 提取域名并写入 SDK"""
+        self.sdk.set_document_url(url)
         try:
             parsed = urlparse(url)
             host = parsed.netloc.strip().lower()

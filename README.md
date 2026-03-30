@@ -22,6 +22,14 @@
 
 ---
 
+## 🆕 Recent Updates (v0.2.3)
+
+- Added `export-browser` for public docs and docs readable in your current browser session
+- Browser-based export now downloads images, attachments, whiteboards, and diagrams as local assets
+- Default `export` improves public-share asset fallback by warming the document page session first
+
+---
+
 ## 🎯 Why feishu-docx?
 
 **Let AI Agents read, write, and manage your Feishu/Lark knowledge base.**
@@ -72,7 +80,7 @@ Copy this Skill to your agent project, and Claude can:
 
 - 📖 Read Feishu knowledge base as context
 - 🔍 Search and reference internal documents
-- 📝 *(Planned)* Write conversation content back to Feishu
+- 📝 Create docs, append content, and update specific blocks
 
 ---
 
@@ -87,9 +95,10 @@ Copy this Skill to your agent project, and Claude can:
 | 🗂️ Wiki Batch Export   | Recursively export entire wiki space with hierarchy |
 | ✍️ Document Writing    | Create docs, append Markdown, update specific blocks |
 | 📰 WeChat Import/Export | Export WeChat articles or create Feishu docs from them |
+| 🌐 Browser-Based Export | Export public docs or docs accessible in the current browser session, with local assets |
 | ☁️ Drive Management    | List files, delete files, manage permissions, clear files |
 | 🗄️ Database Schema     | Export APaaS database structure to Markdown     |
-| 🖼️ Auto Image Download | Images saved locally with relative paths        |
+| 🧷 Local Asset Download | Images and attachments saved locally with relative paths |
 | 🔐 Auth                 | Auto tenant_access_token (recommended) or OAuth 2.0 |
 | 🎨 Beautiful TUI        | Terminal UI powered by Textual                  |
 
@@ -108,7 +117,7 @@ This tool currently supports exporting the following Feishu/Lark document compon
 | **Media**      | Images, Drawing Boards                                         | ✅      | Drawing boards exported as images        |
 | **Embedded**   | Spreadsheets (Sheets), Bitable                                 | ✅      | **Text content only**                    |
 | **Special**    | Synced Blocks                                                  | ⚠️     | Original blocks within the same doc only |
-| **Files**      | Attachments                                                    | ✅      | File name + download link                |
+| **Files**      | Attachments                                                    | ✅      | Local download when possible, temp link fallback |
 
 ---
 
@@ -124,9 +133,22 @@ This tool currently supports exporting the following Feishu/Lark document compon
 
 ### CLI
 
+`export-browser` requires Playwright:
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
 ```bash
 # Export single document to specific directory
 feishu-docx export "https://xxx.feishu.cn/docx/xxx" -o ./docs
+
+# Export a public or browser-readable doc in a real browser session
+feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" -o ./browser_docs
+
+# Export with existing Playwright storage state
+feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" --storage-state ./storage_state.json
 
 # Batch export entire wiki space (preserves hierarchy)
 feishu-docx export-wiki-space <space_id_or_url> -o ./wiki_backup --max-depth 5
@@ -170,6 +192,17 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 
 # Get content without saving
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
+
+# Export a public or browser-readable doc via a real browser session
+browser_path = exporter.export_with_browser(
+    "https://xxx.larkoffice.com/wiki/xxx",
+    "./browser_output",
+)
+
+# Get browser-based export content without saving
+browser_content = exporter.export_content_with_browser(
+    "https://xxx.larkoffice.com/wiki/xxx",
+)
 
 # Batch export entire wiki space
 result = exporter.export_wiki_space(
@@ -256,6 +289,7 @@ feishu-docx export "https://xxx.feishu.cn/docx/xxx"
 | Command                            | Description                             |
 |------------------------------------|-----------------------------------------|
 | `export <URL>`                     | Export single document to Markdown      |
+| `export-browser <URL>`             | Export a public or browser-readable doc in a real browser session |
 | `export-wiki-space <space_id>`     | Batch export wiki space with hierarchy  |
 | `export-workspace-schema <id>`     | Export APaaS database schema            |
 | `export-wechat <URL>`              | Export WeChat article to Markdown       |
@@ -296,6 +330,7 @@ Currently available:
 - [x] Claude Skills support
 - [x] Batch export entire wiki space
 - [x] Write to Feishu (create/update docs)
+- [x] Browser-based export with local assets
 
 ---
 

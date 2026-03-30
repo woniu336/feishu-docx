@@ -21,6 +21,14 @@
 
 ---
 
+## 🆕 最近重要更新（v0.2.3）
+
+- 新增 `export-browser`，可导出公开文档或当前浏览器会话可读的文档
+- 使用 Browser-based 导出时，图片、附件、白板、图表会一起下载为本地资源
+- 默认 `export` 现支持无法获取临时链接的资源（如图片、附件）的本地下载，失败时回退到临时链接导出
+
+---
+
 ## 🎯 为什么选择 feishu-docx？
 
 **让 AI Agent 读懂、写入并管理你的飞书知识库。**
@@ -64,32 +72,33 @@ feishu-docx drive ls --type docx
 **让 Agent 直接访问你的飞书知识库！**
 
 本项目已包含 Claude Skills 配置，位于 `.skills/feishu-docx/SKILL.md`。
-Supports OpenCode, Claude Code, Codex, Cursor, and more.
+支持 OpenCode、Claude Code、Codex、Cursor 等 Agent / IDE 环境。
 
 将此 Skill 复制到你的 Agent 项目中，Claude 就能：
 
 - 📖 读取飞书知识库作为上下文
 - 🔍 搜索和引用内部文档
-- 📝 *（规划中）* 将对话内容写入飞书
+- 📝 创建文档、追加内容、更新指定 Block
 
 ---
 
 ## ✨ 功能特性
 
-| 功能           | 描述                         |
-|--------------|----------------------------|
-| 📄 云文档导出     | Docx → Markdown，保留格式、图片、表格 |
-| 📊 电子表格导出    | Sheet → Markdown 表格        |
-| 📋 多维表格导出    | Bitable → Markdown 表格      |
-| 📚 知识库导出     | Wiki 节点自动解析，支持嵌套结构         |
-| 🗂️ Wiki 批量导出 | 递归导出整个知识空间，保持目录层级结构        |
-| ✍️ 文档写入      | 创建文档、追加 Markdown、更新指定 Block |
-| 📰 公众号导入导出   | 公众号文章导出 Markdown / 直接导入飞书 |
-| ☁️ 云空间管理    | 列文件、删文件、公开权限、成员权限、批量清空 |
-| 🗄️ 数据库结构导出  | APaaS 数据库表结构导出为 Markdown   |
-| 🖼️ 自动下载图片   | 图片保存到本地，Markdown 相对路径引用    |
-| 🔐 认证方式     | 自动 tenant_access_token（推荐）/ OAuth 2.0 |
-| 🎨 精美 TUI    | 基于 Textual 的终端图形界面         |
+| 功能                  | 描述                         |
+|---------------------|----------------------------|
+| 📄 云文档导出            | Docx → Markdown，保留格式、图片、表格 |
+| 📊 电子表格导出           | Sheet → Markdown 表格        |
+| 📋 多维表格导出           | Bitable → Markdown 表格      |
+| 📚 知识库导出            | Wiki 节点自动解析，支持嵌套结构         |
+| 🗂️ Wiki 批量导出       | 递归导出整个知识空间，保持目录层级结构        |
+| ✍️ 文档写入             | 创建文档、追加 Markdown、更新指定 Block |
+| 📰 公众号导入导出          | 公众号文章导出 Markdown / 直接导入飞书 |
+| 🌐 Browser-based 导出 | 导出公开文档或浏览器会话可读文档，并下载本地资源 |
+| ☁️ 云空间管理            | 列文件、删文件、公开权限、成员权限、批量清空 |
+| 🗄️ 数据库结构导出         | APaaS 数据库表结构导出为 Markdown   |
+| 🧷 本地资源下载           | 图片和附件保存到本地，Markdown 相对路径引用    |
+| 🔐 认证方式             | 自动 tenant_access_token（推荐）/ OAuth 2.0 |
+| 🎨 精美 TUI           | 基于 Textual 的终端图形界面         |
 
 ### ✅ 支持的Block
 
@@ -104,7 +113,7 @@ Supports OpenCode, Claude Code, Codex, Cursor, and more.
 | **多媒体**  | 图片、画板                    |  ✅   | 画板将导出为图片      |
 | **嵌入文档** | 电子表格、多维表格                |  ✅   | **仅导出文字内容**   |
 | **特殊块**  | 同步块                      |  ⚠️  | 仅支持同文档内的原始块   |
-| **文件**   | 附件                       |  ✅   | 文件名+临时下载链接    |
+| **文件**   | 附件                       |  ✅   | 优先本地下载，失败时回退临时链接    |
 
 ---
 
@@ -120,9 +129,22 @@ Supports OpenCode, Claude Code, Codex, Cursor, and more.
 
 ### CLI 命令行
 
+`export-browser` 依赖 Playwright：
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
 ```bash
 # 导出单个文档到指定目录
 feishu-docx export "https://xxx.feishu.cn/docx/xxx" -o ./docs
+
+# 在真实浏览器会话中导出公开文档或当前浏览器可读文档
+feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" -o ./browser_docs
+
+# 复用已有 Playwright 登录态导出
+feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" --storage-state ./storage_state.json
 
 # 批量导出整个知识空间（保持层级结构）
 feishu-docx export-wiki-space <space_id_or_url> -o ./wiki_backup --max-depth 5
@@ -166,6 +188,17 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 
 # 获取文档内容（不保存文件）
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
+
+# 在真实浏览器会话中导出公开文档或当前浏览器可读文档
+browser_path = exporter.export_with_browser(
+    "https://xxx.larkoffice.com/wiki/xxx",
+    "./browser_output",
+)
+
+# 获取使用浏览器导出的 Markdown 内容（不保存文件）
+browser_content = exporter.export_content_with_browser(
+    "https://xxx.larkoffice.com/wiki/xxx",
+)
 
 # 批量导出整个知识空间
 result = exporter.export_wiki_space(
@@ -252,6 +285,7 @@ feishu-docx export "https://xxx.feishu.cn/docx/xxx"
 | 命令                              | 描述                      |
 |---------------------------------|-------------------------|
 | `export <URL>`                  | 导出单个文档为 Markdown        |
+| `export-browser <URL>`          | 在真实浏览器会话中导出公开 / 浏览器可读文档 |
 | `export-wiki-space <space_id>`  | 批量导出知识空间（保持目录层级）        |
 | `export-workspace-schema <id>`  | 导出 APaaS 数据库结构         |
 | `export-wechat <URL>`           | 导出公众号文章为 Markdown       |
@@ -303,6 +337,7 @@ pytest tests/ -v
 - [x] Claude Skills 支持
 - [x] 批量导出整个知识空间
 - [x] 写入飞书（创建/更新文档）
+- [x] 使用浏览器导出与本地资源下载
 
 ---
 

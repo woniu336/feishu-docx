@@ -392,7 +392,18 @@ class DocumentParser:
                 return ""
             file_name = block.file.name or "未命名文件"
             file_token = block.file.token
-            # 获取临时下载 URL
+            if self.assets_dir:
+                file_path_or_url = self.sdk.media.get_file(
+                    file_token=file_token,
+                    access_token=self.user_access_token,
+                    file_name=file_name,
+                )
+                if file_path_or_url:
+                    if file_path_or_url.startswith(("http://", "https://")):
+                        return f"📎 [{file_name}]({file_path_or_url})"
+                    rel_path = f"{self.assets_dir.name}/{Path(file_path_or_url).name}"
+                    return f"📎 [{file_name}]({rel_path})"
+
             download_url = self.sdk.media.get_file_download_url(file_token, self.user_access_token)
             if download_url:
                 return f"📎 [{file_name}]({download_url})"
