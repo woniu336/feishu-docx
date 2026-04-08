@@ -15,12 +15,14 @@
 
 from feishu_docx.schema.models import (
     BlockType,
+    SheetValueMode,
     TableMode
 )
 from feishu_docx.schema.code_style import CODE_STYLE_MAP
 
 __all__ = [
     "BlockType",
+    "SheetValueMode",
     "TableMode",
     "CODE_STYLE_MAP",
 ]

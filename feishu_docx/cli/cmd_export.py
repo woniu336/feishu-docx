@@ -66,6 +66,11 @@ def export(
             "--table",
             help="表格输出格式: html / md",
         ),
+        sheet_value_mode: str = typer.Option(
+            "display",
+            "--sheet-value-mode",
+            help="电子表格单元格导出模式: display / formula（仅影响 Sheet 与嵌入 Sheet）",
+        ),
         lark: bool = typer.Option(
             False,
             "--lark",
@@ -112,6 +117,9 @@ def export(
         # 导出到指定目录 \\n
         feishu-docx export "https://xxx.feishu.cn/docx/xxx" -o ./docs -n my_doc
 
+        # 导出 Sheet 时保留公式 \\n
+        feishu-docx export "https://xxx.feishu.cn/wiki/xxx" --table md --sheet-value-mode formula
+
         # 直接输出内容（适合 AI Agent）\\n
         feishu-docx export "https://xxx.feishu.cn/docx/xxx" --stdout
 
@@ -146,6 +154,7 @@ def export(
             content = exporter.export_content(
                 url=url,
                 table_format=table_format,  # type: ignore
+                sheet_value_mode=sheet_value_mode,  # type: ignore
                 export_board_metadata=export_board_metadata,
             )
             print(content)
@@ -156,6 +165,7 @@ def export(
                 output_dir=output,
                 filename=filename,
                 table_format=table_format,  # type: ignore
+                sheet_value_mode=sheet_value_mode,  # type: ignore
                 with_block_ids=with_block_ids,
                 export_board_metadata=export_board_metadata,
             )
@@ -250,6 +260,11 @@ def export_wiki_space(
             "--max-depth",
             help="最大遍历深度",
         ),
+        sheet_value_mode: str = typer.Option(
+            "display",
+            "--sheet-value-mode",
+            help="电子表格单元格导出模式: display / formula（仅影响 Sheet 与嵌入 Sheet）",
+        ),
         token: Optional[str] = typer.Option(
             None,
             "-t",
@@ -280,6 +295,9 @@ def export_wiki_space(
 
         # 限制遍历深度\\\\n
         feishu-docx export-wiki-space my_library --max-depth 2
+
+        # 批量导出时保留 Sheet 公式\\\\n
+        feishu-docx export-wiki-space my_library --sheet-value-mode formula
     """
     try:
         # 获取凭证
@@ -304,6 +322,7 @@ def export_wiki_space(
             output_dir=output,
             max_depth=max_depth,
             parent_node_token=parent_node,
+            sheet_value_mode=sheet_value_mode,  # type: ignore
             silent=False,
         )
 

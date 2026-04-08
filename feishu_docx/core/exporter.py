@@ -195,6 +195,7 @@ class FeishuExporter:
             output_dir: str | Path = ".",
             filename: Optional[str] = None,
             table_format: Literal["html", "md"] = "md",
+            sheet_value_mode: Literal["display", "formula"] = "display",
             silent: bool = False,
             progress_callback=None,
             with_block_ids: bool = False,
@@ -208,6 +209,7 @@ class FeishuExporter:
             output_dir: 输出目录
             filename: 输出文件名（不含扩展名），默认使用文档标题
             table_format: 表格输出格式 ("html" 或 "md")
+            sheet_value_mode: 电子表格单元格值导出模式 ("display" 或 "formula")
             silent: 是否静默模式
             progress_callback: 进度回调
             with_block_ids: 是否在导出的 Markdown 中嵌入 Block ID 注释
@@ -240,7 +242,7 @@ class FeishuExporter:
         if not silent:
             console.print("[yellow]> 正在解析文档...[/yellow]")
         content = self._parse_document(
-            doc_info, access_token, table_format, assets_dir,
+            doc_info, access_token, table_format, sheet_value_mode, assets_dir,
             silent=silent, progress_callback=progress_callback,
             with_block_ids=with_block_ids,
             export_board_metadata=export_board_metadata
@@ -264,6 +266,7 @@ class FeishuExporter:
             self,
             url: str,
             table_format: Literal["html", "md"] = "html",
+            sheet_value_mode: Literal["display", "formula"] = "display",
             export_board_metadata: bool = False,
     ) -> str:
         """
@@ -272,6 +275,7 @@ class FeishuExporter:
         Args:
             url: 飞书文档 URL
             table_format: 表格输出格式
+            sheet_value_mode: 电子表格单元格值导出模式
             export_board_metadata: 是否导出画板节点元数据
 
         Returns:
@@ -281,7 +285,7 @@ class FeishuExporter:
         self._set_document_domain_from_url(url)
         access_token = self.get_access_token()
         return self._parse_document(
-            doc_info, access_token, table_format, assets_dir=None,
+            doc_info, access_token, table_format, sheet_value_mode, assets_dir=None,
             export_board_metadata=export_board_metadata
         )
 
@@ -342,6 +346,7 @@ class FeishuExporter:
             doc_info: NodeInfo,
             access_token: str,
             table_format: Literal["html", "md"],
+            sheet_value_mode: Literal["display", "formula"],
             assets_dir: Optional[Path],
             silent: bool = False,
             progress_callback=None,
@@ -355,6 +360,7 @@ class FeishuExporter:
             doc_info: 文档信息
             access_token: 访问凭证
             table_format: 表格输出格式
+            sheet_value_mode: 电子表格单元格值导出模式
             assets_dir: 资源目录（图片等），None 时使用临时目录
             silent: 是否静默模式
             progress_callback: 进度回调
@@ -373,6 +379,7 @@ class FeishuExporter:
                 document_id=doc_info.node_token,
                 user_access_token=access_token,
                 table_mode=table_format,
+                sheet_value_mode=sheet_value_mode,
                 sdk=self.sdk,
                 assets_dir=assets_dir,
                 silent=silent,
@@ -387,6 +394,7 @@ class FeishuExporter:
                 spreadsheet_token=doc_info.node_token,
                 user_access_token=access_token,
                 table_mode=table_format,
+                sheet_value_mode=sheet_value_mode,
                 sdk=self.sdk,
                 silent=silent,
                 progress_callback=progress_callback,
@@ -414,6 +422,7 @@ class FeishuExporter:
                     document_id=node.obj_token,
                     user_access_token=access_token,
                     table_mode=table_format,
+                    sheet_value_mode=sheet_value_mode,
                     sdk=self.sdk,
                     assets_dir=assets_dir,
                     silent=silent,
@@ -426,6 +435,7 @@ class FeishuExporter:
                     spreadsheet_token=node.obj_token,
                     user_access_token=access_token,
                     table_mode=table_format,
+                    sheet_value_mode=sheet_value_mode,
                     sdk=self.sdk,
                     silent=silent,
                     progress_callback=progress_callback,
@@ -508,6 +518,7 @@ class FeishuExporter:
             silent: bool = False,
             progress_callback=None,
             table_format: Literal["html", "md"] = "md",
+            sheet_value_mode: Literal["display", "formula"] = "display",
             with_block_ids: bool = False,
             export_board_metadata: bool = False,
 
@@ -523,6 +534,7 @@ class FeishuExporter:
             silent: 是否静默模式
             progress_callback: 进度回调函数 (exported, failed, current_title)
             table_format: 表格输出格式
+            sheet_value_mode: 电子表格单元格值导出模式
             with_block_ids: 是否嵌入 Block ID 注释
             export_board_metadata: 是否导出画板节点元数据
 
@@ -642,7 +654,11 @@ class FeishuExporter:
                                 url=url,
                                 output_dir=doc_dir,
                                 filename=safe_title,
+                                table_format=table_format,
+                                sheet_value_mode=sheet_value_mode,
                                 silent=True,
+                                with_block_ids=with_block_ids,
+                                export_board_metadata=export_board_metadata,
                             )
                             result["exported"] += 1
                             result["paths"].append(path)
@@ -669,6 +685,7 @@ class FeishuExporter:
                                 output_dir=current_path,
                                 filename=safe_title,
                                 table_format=table_format,
+                                sheet_value_mode=sheet_value_mode,
                                 silent=silent,
                                 with_block_ids=with_block_ids,
                                 export_board_metadata=export_board_metadata,

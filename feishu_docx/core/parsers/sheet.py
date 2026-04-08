@@ -16,7 +16,7 @@
 from typing import Optional
 
 from feishu_docx.core.sdk import FeishuSDK
-from feishu_docx.schema.models import TableMode
+from feishu_docx.schema.models import SheetValueMode, TableMode
 from feishu_docx.utils.progress import ProgressManager
 
 
@@ -32,6 +32,7 @@ class SheetParser:
             spreadsheet_token: str,
             user_access_token: str,
             table_mode: str = "md",
+            sheet_value_mode: str = "display",
             sdk: Optional[FeishuSDK] = None,
             silent: bool = False,
             progress_callback=None,
@@ -43,12 +44,14 @@ class SheetParser:
             spreadsheet_token: 电子表格 token
             user_access_token: 用户访问凭证
             table_mode: 表格输出格式 ("html" 或 "md")
+            sheet_value_mode: 单元格值导出模式 ("display" 或 "formula")
             sdk: 可选的 SDK 实例
             silent: 是否静默模式
             progress_callback: 进度回调函数
         """
         self.sdk = sdk or FeishuSDK()
         self.table_mode = TableMode(table_mode)
+        self.sheet_value_mode = SheetValueMode(sheet_value_mode)
         self.user_access_token = user_access_token
         self.spreadsheet_token = spreadsheet_token
         self.block_info = {}
@@ -96,6 +99,7 @@ class SheetParser:
                         sheet_id=sheet_id,
                         access_token=self.user_access_token,
                         table_mode=self.table_mode,
+                        value_mode=self.sheet_value_mode,
                     )
                 elif resource_type == "bitable":
                     sheet_data = self._parse_bitable_sheet(sheet_id, sheet_title)

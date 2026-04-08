@@ -140,6 +140,10 @@ playwright install chromium
 # 导出单个文档到指定目录
 feishu-docx export "https://xxx.feishu.cn/docx/xxx" -o ./docs
 
+# 控制 Sheet 导出为计算值或公式（仅影响 Sheet 与嵌入 Sheet）
+feishu-docx export "https://xxx.feishu.cn/wiki/xxx" --table md --sheet-value-mode display
+feishu-docx export "https://xxx.feishu.cn/wiki/xxx" --table md --sheet-value-mode formula
+
 # 在真实浏览器会话中导出公开文档或当前浏览器可读文档
 feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" -o ./browser_docs
 

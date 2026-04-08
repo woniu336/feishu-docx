@@ -144,6 +144,10 @@ playwright install chromium
 # Export single document to specific directory
 feishu-docx export "https://xxx.feishu.cn/docx/xxx" -o ./docs
 
+# Choose display values or formulas for Sheets (affects Sheet and embedded Sheet only)
+feishu-docx export "https://xxx.feishu.cn/wiki/xxx" --table md --sheet-value-mode display
+feishu-docx export "https://xxx.feishu.cn/wiki/xxx" --table md --sheet-value-mode formula
+
 # Export a public or browser-readable doc in a real browser session
 feishu-docx export-browser "https://xxx.larkoffice.com/wiki/xxx" -o ./browser_docs
 

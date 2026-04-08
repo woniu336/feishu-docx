@@ -24,7 +24,7 @@ from lark_oapi.api.sheets.v3 import (
 )
 from lark_oapi.core import BaseResponse
 
-from feishu_docx.schema.models import TableMode
+from feishu_docx.schema.models import SheetValueMode, TableMode
 from feishu_docx.utils.console import get_console
 from feishu_docx.utils.render_table import convert_to_html, convert_to_markdown
 from .base import SubModule
@@ -34,6 +34,12 @@ console = get_console()
 
 class SheetAPI(SubModule):
     """电子表格 API"""
+
+    _DATE_TIME_RENDER_OPTION = "FormattedString"
+    _VALUE_RENDER_OPTIONS = {
+        SheetValueMode.DISPLAY: "FormattedValue",
+        SheetValueMode.FORMULA: "Formula",
+    }
 
     def get_spreadsheet_info(self, spreadsheet_token: str, access_token: str) -> dict:
         """获取电子表格基本信息"""
@@ -95,15 +101,10 @@ class SheetAPI(SubModule):
             sheet_id: str,
             access_token: str,
             table_mode: TableMode,
+            value_mode: SheetValueMode = SheetValueMode.DISPLAY,
     ) -> Optional[str]:
         """获取电子表格数据并转换为 Markdown/HTML"""
-        request = (
-            lark.BaseRequest.builder()
-            .http_method(lark.HttpMethod.GET)
-            .uri(f"/open-apis/sheets/v2/spreadsheets/{sheet_token}/values/{sheet_id}")
-            .token_types({self._get_token_type()})
-            .build()
-        )
+        request = self._build_sheet_values_request(sheet_token, sheet_id, value_mode)
         option = self._build_option(access_token)
         response: BaseResponse = self.client.request(request, option)
 
@@ -127,3 +128,21 @@ class SheetAPI(SubModule):
         except Exception as e:
             console.print(f"[red]解析工作表数据失败: {e}[/red]")
             return None
+
+    def _build_sheet_values_request(
+            self,
+            sheet_token: str,
+            sheet_id: str,
+            value_mode: SheetValueMode,
+    ) -> lark.BaseRequest:
+        """构建工作表 values 请求"""
+        request = (
+            lark.BaseRequest.builder()
+            .http_method(lark.HttpMethod.GET)
+            .uri(f"/open-apis/sheets/v2/spreadsheets/{sheet_token}/values/{sheet_id}")
+            .token_types({self._get_token_type()})
+            .build()
+        )
+        request.add_query("valueRenderOption", self._VALUE_RENDER_OPTIONS[value_mode])
+        request.add_query("dateTimeRenderOption", self._DATE_TIME_RENDER_OPTION)
+        return request

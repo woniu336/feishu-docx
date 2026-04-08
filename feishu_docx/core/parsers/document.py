@@ -24,7 +24,7 @@ from feishu_docx.utils.console import get_console
 
 from feishu_docx.core.sdk import FeishuSDK
 from feishu_docx.schema.code_style import CODE_STYLE_MAP
-from feishu_docx.schema.models import BlockType, TableMode
+from feishu_docx.schema.models import BlockType, SheetValueMode, TableMode
 from feishu_docx.utils.progress import ProgressManager
 from feishu_docx.utils.render_table import render_table_html, render_table_markdown
 
@@ -50,6 +50,7 @@ class DocumentParser:
             document_id: str,
             user_access_token: str,
             table_mode: str = "md",
+            sheet_value_mode: str = "display",
             sdk: Optional[FeishuSDK] = None,
             assets_dir: Optional[Path] = None,
             silent: bool = False,
@@ -64,6 +65,7 @@ class DocumentParser:
             document_id: 文档 ID
             user_access_token: 用户访问凭证
             table_mode: 表格输出格式 ("html" 或 "md")
+            sheet_value_mode: 嵌入电子表格的单元格值导出模式 ("display" 或 "formula")
             sdk: 可选的 SDK 实例（用于共享临时目录）
             assets_dir: 资源文件保存目录（图片等）
             silent: 是否静默模式（不输出 Rich 进度）
@@ -73,6 +75,7 @@ class DocumentParser:
         """
         self.sdk = sdk or FeishuSDK()
         self.table_mode = TableMode(table_mode)
+        self.sheet_value_mode = SheetValueMode(sheet_value_mode)
         self.user_access_token = user_access_token
         self.document_id = document_id
         self.assets_dir = assets_dir
@@ -354,6 +357,7 @@ class DocumentParser:
                     sheet_id=token_parts[1],
                     access_token=self.user_access_token,
                     table_mode=self.table_mode,
+                    value_mode=self.sheet_value_mode,
                 ) or ""
             return ""
 

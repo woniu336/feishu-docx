@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `export` / `export-wiki-space` 新增 `--sheet-value-mode`，支持在导出 Sheet 时选择展示值或公式
+
+### Fixed
+- 修复 Sheet 导出默认保留公式文本的问题，改为优先导出单元格展示值
+
 ## [0.2.3] - 2026-03-30
 
 ### Added

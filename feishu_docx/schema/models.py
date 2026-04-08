@@ -25,6 +25,12 @@ class TableMode(Enum):
     HTML = "html"
 
 
+class SheetValueMode(Enum):
+    """电子表格单元格值导出模式"""
+    DISPLAY = "display"
+    FORMULA = "formula"
+
+
 class BlockType(IntEnum):
     """飞书文档 Block 类型枚举"""
     PAGE = 1  # 页面 Block
