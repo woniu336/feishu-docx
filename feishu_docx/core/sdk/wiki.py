@@ -91,7 +91,7 @@ class WikiAPI(SubModule):
             if not result:
                 break
 
-            all_nodes.extend(result.items)
+            all_nodes.extend(result.items or [])
             has_more = result.has_more
             page_token = result.page_token
 

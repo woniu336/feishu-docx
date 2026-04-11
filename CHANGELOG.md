@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-04-11
+
+### Fixed
+- 修复 `export-wiki-space` 在公开知识空间首页 URL 下因 `items=None` 崩溃的问题，并修正首页 URL 的导出范围解析
+
+## [0.2.4] - 2026-04-08
+
 ### Added
 - `export` / `export-wiki-space` 新增 `--sheet-value-mode`，支持在导出 Sheet 时选择展示值或公式
 

@@ -554,41 +554,20 @@ class FeishuExporter:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         access_token = self.get_access_token()
-        domain = "feishu" if self.is_lark else "larksuite"
+        base_url = self._resolve_wiki_export_base_url(space_id_or_url)
 
         # 解析输入：支持 URL 或 space_id
         space_id = space_id_or_url
         save_dir = None
-        parent_node_token = parent_node_token
         if space_id_or_url.startswith(("http://", "https://")):
-            # 从 URL 解析 space_id
-            try:
-                doc_info = self.parse_url(space_id_or_url)
-            except ValueError as e:
-                raise ValueError(f"URL 格式错误: {e}")
-
-            if doc_info.node_type != "wiki":
-                raise ValueError(f"输入的不是 Wiki 链接（类型: {doc_info.node_type}）")
-
-            if not parent_node_token:
-                # 从 URL 中解析 parent_node_token
-                parent_node_token = doc_info.node_token
-
-            node_info = self.sdk.wiki.get_node_by_token(
-                token=doc_info.node_token,
+            space_id, save_dir, parent_node_token = self._resolve_wiki_space_scope(
+                wiki_url=space_id_or_url,
                 access_token=access_token,
+                explicit_parent_node_token=parent_node_token,
+                silent=silent,
             )
-
-            if not node_info or not node_info.space_id:
-                raise ValueError("无法获取知识空间信息")
-
-            space_id = node_info.space_id
-            save_dir = node_info.title or node_info.node_token
-            if not silent:
-                console.print(f"[green]✓ 从 URL 解析得到 space_id:[/green] {space_id}")
-            self._set_document_domain_from_url(space_id_or_url)
         else:
-            self.sdk.set_document_domain(domain)
+            self.sdk.set_document_domain("larkoffice" if self.is_lark else "feishu")
 
         # 获取知识空间信息
         try:
@@ -640,9 +619,9 @@ class FeishuExporter:
                 if obj_type in ["doc", "docx", "sheet" , "bitable"]:
                     # 构建文档 URL
                     if obj_type == "bitable":
-                        url = f"https://{domain}/wiki/{node_token}"
+                        url = f"{base_url}/wiki/{node_token}"
                     else:
-                        url = f"https://{domain}/{obj_type}/{obj_token}"
+                        url = f"{base_url}/{obj_type}/{obj_token}"
 
                     if has_child:
                         # 有子节点：创建子目录并导出
@@ -718,3 +697,53 @@ class FeishuExporter:
         traverse(parent_node_token, 0, space_dir)
 
         return result
+
+    def _resolve_wiki_space_scope(
+            self,
+            wiki_url: str,
+            access_token: str,
+            explicit_parent_node_token: Optional[str],
+            silent: bool,
+    ) -> tuple[str, Optional[str], Optional[str]]:
+        """解析 Wiki URL 对应的知识空间和导出范围。"""
+        try:
+            doc_info = self.parse_url(wiki_url)
+        except ValueError as e:
+            raise ValueError(f"URL 格式错误: {e}")
+
+        if doc_info.node_type != "wiki":
+            raise ValueError(f"输入的不是 Wiki 链接（类型: {doc_info.node_type}）")
+
+        node_info = self.sdk.wiki.get_node_by_token(
+            token=doc_info.node_token,
+            access_token=access_token,
+        )
+
+        if not node_info or not node_info.space_id:
+            raise ValueError("无法获取知识空间信息")
+
+        resolved_parent_node_token = explicit_parent_node_token
+        if resolved_parent_node_token is None:
+            # 知识空间首页常表现为“无父节点且无子节点”的占位 Wiki URL。
+            # 这类 URL 应回退为导出整个 space 的顶层节点，而不是错误地按 node_token 过滤。
+            if node_info.has_child:
+                resolved_parent_node_token = doc_info.node_token
+            elif getattr(node_info, "parent_node_token", ""):
+                resolved_parent_node_token = doc_info.node_token
+            else:
+                resolved_parent_node_token = None
+
+        if not silent:
+            console.print(f"[green]✓ 从 URL 解析得到 space_id:[/green] {node_info.space_id}")
+        self._set_document_domain_from_url(wiki_url)
+        return node_info.space_id, node_info.title or node_info.node_token, resolved_parent_node_token
+
+    def _resolve_wiki_export_base_url(self, space_id_or_url: str) -> str:
+        """解析批量导出时用于拼接子文档链接的基础 URL。"""
+        if space_id_or_url.startswith(("http://", "https://")):
+            parsed = urlparse(space_id_or_url)
+            if parsed.scheme and parsed.netloc:
+                return f"{parsed.scheme}://{parsed.netloc}"
+        if self.is_lark:
+            return "https://my.larkoffice.com"
+        return "https://my.feishu.cn"

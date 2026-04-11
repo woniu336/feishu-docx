@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # =====================================================
 # @File   ：__init__.py
-# @Date   ：2026/03/30 22:20
+# @Date   ：2026/04/11 20:22
 # @Author ：leemysw
 # 2025/01/09 18:30   Create
-# 2026/03/30 22:20   Release v0.2.3
+# 2026/04/11 20:22   Release v0.2.5
 # =====================================================
 """
 [INPUT]: None
@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*pkg_resources.*")
 
-__version__ = "0.2.3"
+__version__ = "0.2.5"
 
 from feishu_docx.core.exporter import FeishuExporter
 
