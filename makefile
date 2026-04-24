@@ -1,11 +1,11 @@
 config:
-	python mian.py config set
+	python main.py config set
 
 auth:
-	python mian.py auth
+	python main.py auth
 
 tui:
-	python mian.py tui
+	python main.py tui
 
 upload:
 	rm -rf dist && python -m build  && twine upload dist/*
