@@ -15,6 +15,7 @@
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 """
 
+import json
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import unquote
@@ -389,6 +390,26 @@ class DocumentParser:
                     table_mode=self.table_mode,
                 ) or ""
             return ""
+
+        # 文档小组件 Block
+        if bt == BlockType.ADD_ONS:
+            if not block.add_ons or not block.add_ons.record:
+                return ""
+            try:
+                record = json.loads(block.add_ons.record)
+            except (json.JSONDecodeError, TypeError):
+                return ""
+            widget_data = record.get("data")
+            if not widget_data:
+                return ""
+            view = record.get("view", "")
+            if view in ("codeChart", "flowChart"):
+                lang = "mermaid"
+            elif view == "uml":
+                lang = "plantuml"
+            else:
+                lang = "text"
+            return f"```{lang}\n{widget_data}\n```"
 
         # 文件/附件 Block
         if bt == BlockType.FILE:
