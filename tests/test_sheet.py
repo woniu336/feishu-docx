@@ -101,6 +101,52 @@ def test_get_sheet_can_export_formula(monkeypatch):
     assert "=SUM(G5:R5)" in result
 
 
+def test_get_sheet_renders_rich_text_cell_segments(monkeypatch):
+    """Sheet 富文本单元格应渲染为文本，而不是 Python list/dict 字符串。"""
+    sdk = FeishuSDK(token_type="tenant")
+
+    def fake_request(request, option):  # noqa: ARG001
+        payload = {
+            "data": {
+                "valueRange": {
+                    "values": [
+                        ["说明"],
+                        [[
+                            {
+                                "type": "text",
+                                "text": "SDK 提供 ",
+                                "segmentStyle": {"bold": False},
+                            },
+                            {
+                                "type": "text",
+                                "text": "session / context 接口",
+                                "segmentStyle": {"bold": True},
+                            },
+                            {
+                                "type": "text",
+                                "text": "：每个用户创建独立 session。",
+                                "segmentStyle": {"bold": False},
+                            },
+                        ]],
+                    ]
+                }
+            }
+        }
+        return _FakeResponse(payload)
+
+    monkeypatch.setattr(sdk.client, "request", fake_request)
+
+    result = sdk.sheet.get_sheet(
+        sheet_token="spreadsheet_token",
+        sheet_id="sheet_id",
+        access_token="token",
+        table_mode=TableMode.MARKDOWN,
+    )
+
+    assert "segmentStyle" not in result
+    assert "SDK 提供 **session / context 接口**：每个用户创建独立 session。" in result
+
+
 def test_export_content_passes_sheet_value_mode(monkeypatch):
     """导出器应把 sheet_value_mode 传递到解析层。"""
     exporter = FeishuExporter.from_token("token")

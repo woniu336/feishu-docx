@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-05-14
+
+### Added
+- 合并社区贡献，新增 Add-ons Block 渲染支持
+
+### Fixed
+- 修复 Sheet 富文本单元格导出为 Python list/dict 字符串的问题
+
 ## [0.2.5] - 2026-04-11
 
 ### Fixed
