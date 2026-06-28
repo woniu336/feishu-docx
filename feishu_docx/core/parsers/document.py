@@ -93,6 +93,7 @@ class DocumentParser:
         # Block 缓存
         self.blocks_map: Dict[str, Block] = {}
         self.root_block: Optional[Block] = None
+        self.synced_subtree_cache: Dict[Tuple[str, str], Tuple[Block, Dict[str, Block]]] = {}
 
         # order 序列号
         self.last_order_seq = 1
@@ -161,21 +162,67 @@ class DocumentParser:
 
         return f"# {title}\n{body}"
 
-    def _get_sub_blocks(self, block: Block) -> List[Block]:
+    def _get_sub_blocks(self, block: Block, block_lookup: Optional[Dict[str, Block]] = None) -> List[Block]:
         """获取 block 的子 Block 列表"""
+        lookup = block_lookup or self.blocks_map
         if not block.children:
             return []
-        sub_blocks = [self.blocks_map[sub_id] for sub_id in block.children]
+        sub_blocks = [lookup[sub_id] for sub_id in block.children]
         return sub_blocks
+
+    def _get_synced_subtree(self, source_document_id: str, source_block_id: str) -> Optional[Tuple[Block, Dict[str, Block]]]:
+        cache_key = (source_document_id, source_block_id)
+        if cache_key in self.synced_subtree_cache:
+            return self.synced_subtree_cache[cache_key]
+
+        subtree = self.sdk.docx.get_block_subtree(
+            document_id=source_document_id,
+            block_id=source_block_id,
+            access_token=self.user_access_token,
+        )
+        if not subtree:
+            return None
+
+        subtree_map = {block.block_id: block for block in subtree}
+        if source_block_id not in subtree_map:
+            raise RuntimeError(f"同步块子树缺少根 Block: {source_document_id}/{source_block_id}")
+        root_block = subtree_map[source_block_id]
+        self.synced_subtree_cache[cache_key] = (root_block, subtree_map)
+        return root_block, subtree_map
+
+    def _resolve_reference_synced_children(
+            self,
+            block: Block,
+    ) -> List[Tuple[Block, Dict[str, Block]]]:
+        if not block.reference_synced:
+            return []
+
+        source_document_id = block.reference_synced.source_document_id
+        source_block_id = block.reference_synced.source_block_id
+        if not source_document_id or not source_block_id:
+            return []
+
+        if source_document_id == self.document_id and source_block_id in self.blocks_map:
+            source_block = self.blocks_map[source_block_id]
+            return [(child, self.blocks_map) for child in self._get_sub_blocks(source_block, self.blocks_map)]
+
+        subtree = self._get_synced_subtree(source_document_id, source_block_id)
+        if not subtree:
+            return []
+
+        source_block, subtree_map = subtree
+        return [(child, subtree_map) for child in self._get_sub_blocks(source_block, subtree_map)]
 
     def _recursive_render(
             self,
             block: Block,
             depth: int = 0,
             advance: Optional[Callable[[], None]] = None,
+            block_lookup: Optional[Dict[str, Block]] = None,
     ) -> str:
         """递归渲染 Block 树"""
         content = ""
+        lookup = block_lookup or self.blocks_map
 
         # 更新进度
         if advance:
@@ -186,12 +233,17 @@ class DocumentParser:
 
         # 2. 特殊容器处理
         if block.block_type == BlockType.TABLE:
-            return self._render_table(block)
+            return self._render_table(block, lookup)
 
         # 3. 递归渲染子节点
         children_content = []
-        for child in self._get_sub_blocks(block):
-            child_text = self._recursive_render(child, depth + 1, advance)
+        if block.block_type == BlockType.REFERENCE_SYNCED:
+            child_entries = self._resolve_reference_synced_children(block)
+        else:
+            child_entries = [(child, lookup) for child in self._get_sub_blocks(block, lookup)]
+
+        for child, child_lookup in child_entries:
+            child_text = self._recursive_render(child, depth + 1, advance, child_lookup)
             if child_text:
                 children_content.append(child_text)
 
@@ -474,8 +526,9 @@ class DocumentParser:
             result.append(text)
         return "".join(result)
 
-    def _render_table(self, table_block: Block) -> str:
+    def _render_table(self, table_block: Block, block_lookup: Optional[Dict[str, Block]] = None) -> str:
         """渲染表格 Block"""
+        lookup = block_lookup or self.blocks_map
         if not table_block.table or not table_block.table.property:
             return "[空表格]"
 
@@ -485,7 +538,7 @@ class DocumentParser:
         merge_infos = props.merge_info
 
         # 获取所有 Cell Block
-        sub_blocks = self._get_sub_blocks(table_block)
+        sub_blocks = self._get_sub_blocks(table_block, lookup)
         all_cell_blocks = sub_blocks if sub_blocks else []
         global_cell_cursor = 0
 
@@ -518,8 +571,8 @@ class DocumentParser:
                 cell_content = ""
                 if global_cell_cursor < len(all_cell_blocks):
                     cell_block = all_cell_blocks[global_cell_cursor]
-                    cell_sub_blocks = self._get_sub_blocks(cell_block)
-                    inner_texts = [self._recursive_render(child, depth=0) for child in cell_sub_blocks]
+                    cell_sub_blocks = self._get_sub_blocks(cell_block, lookup)
+                    inner_texts = [self._recursive_render(child, depth=0, block_lookup=lookup) for child in cell_sub_blocks]
                     cell_content = "<br>".join(inner_texts)
                     global_cell_cursor += 1
 

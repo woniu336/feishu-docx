@@ -18,7 +18,13 @@ import copy
 import json
 from typing import List, Optional
 
-from lark_oapi.api.docx.v1 import Block, ListDocumentBlockRequest, ListDocumentBlockResponse
+from lark_oapi.api.docx.v1 import (
+    Block,
+    GetDocumentBlockRequest,
+    GetDocumentBlockResponse,
+    ListDocumentBlockRequest,
+    ListDocumentBlockResponse,
+)
 
 from feishu_docx.utils.console import get_console
 from .base import SubModule
@@ -98,7 +104,13 @@ class DocxAPI(SubModule):
 
         return blocks
 
-    def get_block_children(self, document_id: str, block_id: str, access_token: str) -> List[Block]:
+    def get_block_children(
+            self,
+            document_id: str,
+            block_id: str,
+            access_token: str,
+            with_descendants: bool = False,
+    ) -> List[Block]:
         """获取指定 Block 的子 Block"""
         from lark_oapi.api.docx.v1 import (
             GetDocumentBlockChildrenRequest,
@@ -116,7 +128,7 @@ class DocxAPI(SubModule):
                 .block_id(block_id)
                 .document_revision_id(-1)
                 .page_size(500)
-                .with_descendants(False)
+                .with_descendants(with_descendants)
                 .build()
             )
             if page_token:
@@ -136,6 +148,33 @@ class DocxAPI(SubModule):
             blocks.extend(response.data.items)
 
         return blocks
+
+    def get_block_subtree(self, document_id: str, block_id: str, access_token: str) -> List[Block]:
+        """获取指定 Block 以及它的所有后代 Block。"""
+        request = (
+            GetDocumentBlockRequest.builder()
+            .document_id(document_id)
+            .block_id(block_id)
+            .document_revision_id(-1)
+            .build()
+        )
+        option = self._build_option(access_token)
+        response: GetDocumentBlockResponse = self.client.docx.v1.document_block.get(request, option)
+
+        if not response.success():
+            self._log_error("docx.v1.document_block.get", response)
+            raise RuntimeError("获取 Block 失败")
+        if not response.data or not response.data.block:
+            raise RuntimeError("获取 Block 失败: empty response")
+
+        root_block = response.data.block
+        descendants = self.get_block_children(
+            document_id=document_id,
+            block_id=block_id,
+            access_token=access_token,
+            with_descendants=True,
+        )
+        return [root_block, *descendants]
 
     def create_document(self, title: str, access_token: str, folder_token: Optional[str] = None) -> dict:
         """创建空白文档"""
