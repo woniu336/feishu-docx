@@ -116,7 +116,7 @@ This tool currently supports exporting the following Feishu/Lark document compon
 | **Tables**     | Native Tables                                                  | ✅      | Export to Markdown/HTML                  |
 | **Media**      | Images, Drawing Boards                                         | ✅      | Drawing boards exported as images        |
 | **Embedded**   | Spreadsheets (Sheets), Bitable                                 | ✅      | Sheets support rich-text cells and display/formula modes |
-| **Special**    | Synced Blocks, Add-ons Blocks                                  | ⚠️     | Synced blocks support original blocks within the same doc only |
+| **Special**    | Synced Blocks, Add-ons Blocks                                  | ✅      | Synced blocks support same-document and cross-document references |
 | **Files**      | Attachments                                                    | ✅      | Local download when possible, temp link fallback |
 
 ---
