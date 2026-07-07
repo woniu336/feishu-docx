@@ -208,7 +208,7 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 # Get content without saving
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
 
-# Export with PDF (requires: pip install feishu-docx[pdf])
+# Export with PDF (requires: pip install 'feishu-docx[pdf]')
 path = exporter.export("https://xxx.feishu.cn/docx/xxx", "./output", pdf=True)
 
 # Export with company-branded PDF template

@@ -204,7 +204,7 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 # 获取文档内容（不保存文件）
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
 
-# 导出为 PDF（需执行: pip install feishu-docx[pdf]）
+# 导出为 PDF（需执行: pip install 'feishu-docx[pdf]'）
 path = exporter.export("https://xxx.feishu.cn/docx/xxx", "./output", pdf=True)
 
 # 使用自定义品牌 CSS 模板导出 PDF
