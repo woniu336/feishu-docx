@@ -98,6 +98,27 @@ def export(
             "--export-board-metadata",
             help="导出画板节点元数据（包含位置、大小、类型等信息）",
         ),
+        pdf: bool = typer.Option(
+            False,
+            "--pdf",
+            help="同时生成 PDF 文件（需要安装 weasyprint: pip install feishu-docx[pdf]）",
+        ),
+        pdf_template: Optional[Path] = typer.Option(
+            None,
+            "--pdf-template",
+            help="PDF 自定义 CSS 模板文件路径（用于公司品牌样式）",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+        pdf_logo: Optional[Path] = typer.Option(
+            None,
+            "--pdf-logo",
+            help="PDF 封面页 Logo 图片路径（SVG 或 PNG）",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
 ):
     """
     [green]▶[/] 导出飞书文档为 Markdown
@@ -168,6 +189,9 @@ def export(
                 sheet_value_mode=sheet_value_mode,  # type: ignore
                 with_block_ids=with_block_ids,
                 export_board_metadata=export_board_metadata,
+                pdf=pdf,
+                pdf_template=pdf_template,
+                pdf_logo=pdf_logo,
             )
             console.print(Panel(f"✅ 导出完成: [green]{output_path}[/green]", border_style="green"))
 
@@ -276,6 +300,27 @@ def export_wiki_space(
         app_secret: Optional[str] = typer.Option(None, "--app-secret", help="飞书应用 App Secret"),
         auth_mode: Optional[str] = typer.Option(None, "--auth-mode", help="认证模式: tenant / oauth"),
         lark: bool = typer.Option(False, "--lark", help="使用 Lark (海外版)"),
+        pdf: bool = typer.Option(
+            False,
+            "--pdf",
+            help="同时生成 PDF 文件（需要安装 weasyprint: pip install feishu-docx[pdf]）",
+        ),
+        pdf_template: Optional[Path] = typer.Option(
+            None,
+            "--pdf-template",
+            help="PDF 自定义 CSS 模板文件路径",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+        pdf_logo: Optional[Path] = typer.Option(
+            None,
+            "--pdf-logo",
+            help="PDF 封面页 Logo 图片路径（SVG 或 PNG）",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
 ):
     """
     [green]▶[/] 批量导出知识空间下的所有文档
@@ -324,6 +369,9 @@ def export_wiki_space(
             parent_node_token=parent_node,
             sheet_value_mode=sheet_value_mode,  # type: ignore
             silent=False,
+            pdf=pdf,
+            pdf_template=pdf_template,
+            pdf_logo=pdf_logo,
         )
 
         # 输出统计

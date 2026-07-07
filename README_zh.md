@@ -97,6 +97,7 @@ feishu-docx drive ls --type docx
 | ☁️ 云空间管理            | 列文件、删文件、公开权限、成员权限、批量清空 |
 | 🗄️ 数据库结构导出         | APaaS 数据库表结构导出为 Markdown   |
 | 🧷 本地资源下载           | 图片和附件保存到本地，Markdown 相对路径引用    |
+| 🖨️ PDF 导出            | 使用 WeasyPrint 生成品牌化 PDF，支持自定义 CSS 模板 |
 | 🔐 认证方式             | 自动 tenant_access_token（推荐）/ OAuth 2.0 |
 | 🎨 精美 TUI           | 基于 Textual 的终端图形界面         |
 
@@ -159,6 +160,16 @@ feishu-docx export-workspace-schema <workspace_id> -o ./database_schema.md
 # 导出公众号文章为 Markdown
 feishu-docx export-wechat "https://mp.weixin.qq.com/s/xxxxxx"
 
+# 导出为 PDF（需安装 weasyprint）
+pip install feishu-docx[pdf]
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf
+
+# 使用自定义品牌 CSS 模板导出 PDF
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf --pdf-template ./brand.css
+
+# 封面页添加 Logo
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf --pdf-template ./brand.css --pdf-logo ./logo.svg
+
 # 抓取公众号文章并创建飞书文档
 feishu-docx create --url "https://mp.weixin.qq.com/s/xxxxxx"
 
@@ -192,6 +203,19 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 
 # 获取文档内容（不保存文件）
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
+
+# 导出为 PDF（需执行: pip install feishu-docx[pdf]）
+path = exporter.export("https://xxx.feishu.cn/docx/xxx", "./output", pdf=True)
+
+# 使用自定义品牌 CSS 模板导出 PDF
+from pathlib import Path
+path = exporter.export(
+    "https://xxx.feishu.cn/docx/xxx",
+    "./output",
+    pdf=True,
+    pdf_template=Path("./brand.css"),
+    pdf_logo=Path("./logo.svg"),
+)
 
 # 在真实浏览器会话中导出公开文档或当前浏览器可读文档
 browser_path = exporter.export_with_browser(

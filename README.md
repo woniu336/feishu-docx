@@ -99,6 +99,7 @@ Copy this Skill to your agent project, and Claude can:
 | ☁️ Drive Management    | List files, delete files, manage permissions, clear files |
 | 🗄️ Database Schema     | Export APaaS database structure to Markdown     |
 | 🧷 Local Asset Download | Images and attachments saved locally with relative paths |
+| 🖨️ PDF Export           | Generate branded PDF with WeasyPrint, custom CSS templates |
 | 🔐 Auth                 | Auto tenant_access_token (recommended) or OAuth 2.0 |
 | 🎨 Beautiful TUI        | Terminal UI powered by Textual                  |
 
@@ -163,6 +164,16 @@ feishu-docx export-workspace-schema <workspace_id> -o ./database_schema.md
 # Export WeChat article to Markdown
 feishu-docx export-wechat "https://mp.weixin.qq.com/s/xxxxxx"
 
+# Export with PDF (requires weasyprint)
+pip install feishu-docx[pdf]
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf
+
+# Export with company-branded PDF template
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf --pdf-template ./brand.css
+
+# Export with logo on cover page
+feishu-docx export "https://xxx.feishu.cn/docx/xxx" --pdf --pdf-template ./brand.css --pdf-logo ./logo.svg
+
 # Fetch a WeChat article and create a Feishu doc
 feishu-docx create --url "https://mp.weixin.qq.com/s/xxxxxx"
 
@@ -196,6 +207,19 @@ path = exporter.export("https://xxx.feishu.cn/wiki/xxx", "./output")
 
 # Get content without saving
 content = exporter.export_content("https://xxx.feishu.cn/docx/xxx")
+
+# Export with PDF (requires: pip install feishu-docx[pdf])
+path = exporter.export("https://xxx.feishu.cn/docx/xxx", "./output", pdf=True)
+
+# Export with company-branded PDF template
+from pathlib import Path
+path = exporter.export(
+    "https://xxx.feishu.cn/docx/xxx",
+    "./output",
+    pdf=True,
+    pdf_template=Path("./brand.css"),
+    pdf_logo=Path("./logo.svg"),
+)
 
 # Export a public or browser-readable doc via a real browser session
 browser_path = exporter.export_with_browser(

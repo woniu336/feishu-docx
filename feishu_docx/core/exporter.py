@@ -200,6 +200,9 @@ class FeishuExporter:
             progress_callback=None,
             with_block_ids: bool = False,
             export_board_metadata: bool = False,
+            pdf: bool = False,
+            pdf_template: Optional[Path] = None,
+            pdf_logo: Optional[Path] = None,
     ) -> Path:
         """
         导出飞书文档为 Markdown 文件
@@ -252,7 +255,17 @@ class FeishuExporter:
         output_path = output_dir / f"{output_filename}.md"
         output_path.write_text(content, encoding="utf-8")
 
-        console.print(f"[green]✓ 导出成功:[/green] {output_path}")
+        if not silent:
+            console.print(f"[green]✓ 导出成功:[/green] {output_path}")
+
+        # 5. 可选 PDF
+        if pdf:
+            from .pdf_exporter import md_to_pdf
+
+            pdf_path = output_dir / f"{output_filename}.pdf"
+            md_to_pdf(content, pdf_path, css_path=pdf_template, title=doc_title, logo_path=pdf_logo)
+            if not silent:
+                console.print(f"[green]✓ PDF 导出:[/green] {pdf_path}")
 
         # 如果资源目录为空，删除它
         if not any(assets_dir.iterdir()):
@@ -521,6 +534,9 @@ class FeishuExporter:
             sheet_value_mode: Literal["display", "formula"] = "display",
             with_block_ids: bool = False,
             export_board_metadata: bool = False,
+            pdf: bool = False,
+            pdf_template: Optional[Path] = None,
+            pdf_logo: Optional[Path] = None,
 
     ) -> dict:
         """
@@ -638,6 +654,9 @@ class FeishuExporter:
                                 silent=True,
                                 with_block_ids=with_block_ids,
                                 export_board_metadata=export_board_metadata,
+                                pdf=pdf,
+                                pdf_template=pdf_template,
+                                pdf_logo=pdf_logo,
                             )
                             result["exported"] += 1
                             result["paths"].append(path)
@@ -668,6 +687,9 @@ class FeishuExporter:
                                 silent=silent,
                                 with_block_ids=with_block_ids,
                                 export_board_metadata=export_board_metadata,
+                                pdf=pdf,
+                                pdf_template=pdf_template,
+                                pdf_logo=pdf_logo,
                             )
                             result["exported"] += 1
                             result["paths"].append(path)
