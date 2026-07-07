@@ -40,16 +40,39 @@
 - ☁️ **Cloud-Space Management** — List files, delete files, manage permissions, clear files safely
 - 🔐 **Authentication** — One-time auth, automatic token refresh
 - 🎨 **Dual Interface** — CLI + Beautiful TUI (Textual-based)
-- 📦 **Zero Config** — `pip install` and start exporting
+- 📦 **Easy Install** — `uv tool install feishu-docx` or `pip install feishu-docx`
 
 ---
 
 ## ⚡ Quick Start (30 seconds)
 
-```bash
-# Install
-pip install feishu-docx
+### Install
 
+**Recommended: `uv tool install`** (isolated, no conflicts with system Python)
+
+```bash
+uv tool install feishu-docx
+```
+
+Or run directly without installing:
+
+```bash
+uvx feishu-docx export "https://my.feishu.cn/wiki/xxx"
+```
+
+If you don't have `uv` yet: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+**Alternative: `pip install`** (works inside a virtual environment or with `--break-system-packages`)
+
+```bash
+pip install feishu-docx
+```
+
+> ⚠️ `pip install` outside a virtual environment may fail with `externally-managed-environment` on modern Linux/macOS (PEP 668). Use a virtual environment or `uv tool install` instead.
+
+### Configure and Export
+
+```bash
 # Configure credentials (one-time)
 feishu-docx config set --app-id YOUR_APP_ID --app-secret YOUR_APP_SECRET
 
@@ -136,7 +159,7 @@ This tool currently supports exporting the following Feishu/Lark document compon
 `export-browser` requires Playwright:
 
 ```bash
-pip install playwright
+uv pip install playwright  # or: pip install playwright
 playwright install chromium
 ```
 
