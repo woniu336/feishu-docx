@@ -27,6 +27,7 @@
 - PDF export now supports custom templates, cover logos, and configurable code highlighting themes
 - PDF and browser export dependencies are split into optional extras: `feishu-docx[pdf]` and `feishu-docx[browser]`
 - PDF cover titles are escaped before rendering to avoid injecting raw HTML
+- PDF export improvements were contributed by [@fishman](https://github.com/fishman)
 
 ---
 

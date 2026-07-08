@@ -26,6 +26,7 @@
 - PDF 导出支持自定义模板、封面 Logo 和可配置代码高亮主题
 - PDF 与浏览器导出依赖拆成可选安装：`feishu-docx[pdf]` 与 `feishu-docx[browser]`
 - PDF 封面标题渲染前会转义 HTML，避免原始 HTML 注入
+- PDF 导出改进由 [@fishman](https://github.com/fishman) 贡献
 
 ---
 
