@@ -397,6 +397,7 @@ def export_wiki_space(
             pdf_template=pdf_template,
             pdf_logo=pdf_logo,
             debug=debug,
+            syntax_style=syntax_style,
         )
 
         # 输出统计
