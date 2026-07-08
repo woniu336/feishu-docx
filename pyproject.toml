@@ -35,7 +35,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.10"]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.10", "pymupdf>=1.26,<2"]
 browser = [
     "playwright>=1.54.0",
 ]
@@ -73,3 +73,8 @@ ignore = ["E501"]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e_public_doc: runs the live public document export regression lane",
+]
