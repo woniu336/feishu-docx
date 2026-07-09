@@ -1,0 +1,181 @@
+name: Python CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ github.event_name != 'pull_request' || steps.filter.outputs.python == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            python:
+              - '.github/workflows/python-ci.yml'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'feishu_docx/**'
+              - 'tests/**'
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev dependencies
+        run: uv sync --python ${{ env.PYTHON_VERSION }} --extra dev
+
+      - name: Run lint
+        run: uv run ruff check tests/public_doc_e2e_case.py tests/test_public_doc_e2e.py
+
+  regression:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Install Linux dependencies for WeasyPrint
+        run: |
+          if command -v sudo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y fonts-noto-cjk libcairo2 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangoft2-1.0-0 shared-mime-info
+          else
+            apt-get update
+            apt-get install -y fonts-noto-cjk libcairo2 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangoft2-1.0-0 shared-mime-info
+          fi
+
+      - name: Sync test dependencies
+        run: uv sync --python ${{ env.PYTHON_VERSION }} --extra dev --extra pdf
+
+      - name: Run regression tests without live e2e
+        run: uv run pytest tests/test_image.py tests/test_sheet.py tests/test_wiki.py tests/test_public_doc_e2e.py -q -k 'not e2e_public_doc'
+
+  public-doc-e2e:
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - lint
+      - regression
+    if: needs.changes.outputs.python == 'true' && github.event_name != 'pull_request'
+    env:
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Install Linux dependencies for WeasyPrint
+        run: |
+          if command -v sudo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y fonts-noto-cjk libcairo2 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangoft2-1.0-0 shared-mime-info
+          else
+            apt-get update
+            apt-get install -y fonts-noto-cjk libcairo2 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangoft2-1.0-0 shared-mime-info
+          fi
+
+      - name: Assert Feishu credentials are configured
+        run: |
+          test -n "${FEISHU_APP_ID}" || (echo "FEISHU_APP_ID secret is required" && exit 1)
+          test -n "${FEISHU_APP_SECRET}" || (echo "FEISHU_APP_SECRET secret is required" && exit 1)
+
+      - name: Sync live-e2e dependencies
+        run: uv sync --python ${{ env.PYTHON_VERSION }} --extra dev --extra pdf
+
+      - name: Run public doc live e2e
+        run: uv run pytest tests/test_public_doc_e2e.py -q -m e2e_public_doc
+
+  ci:
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - lint
+      - regression
+      - public-doc-e2e
+    if: always()
+    steps:
+      - name: Check workflow result
+        run: |
+          if [[ "${{ needs.changes.outputs.python }}" != "true" ]]; then
+            echo "No Python-relevant changes."
+            exit 0
+          fi
+
+          for result in \
+            "${{ needs.lint.result }}" \
+            "${{ needs.regression.result }}"; do
+            if [[ "${result}" != "success" ]]; then
+              echo "Non-secret Python checks did not complete successfully: ${result}"
+              exit 1
+            fi
+          done
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]] && [[ "${{ needs.public-doc-e2e.result }}" != "success" ]]; then
+            echo "public-doc-e2e did not complete successfully: ${{ needs.public-doc-e2e.result }}"
+            exit 1
+          fi
