@@ -18,7 +18,7 @@
 import json
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from lark_oapi.api.docx.v1 import Block
 from feishu_docx.utils.console import get_console
@@ -94,6 +94,7 @@ class DocumentParser:
         self.blocks_map: Dict[str, Block] = {}
         self.root_block: Optional[Block] = None
         self.synced_subtree_cache: Dict[Tuple[str, str], Tuple[Block, Dict[str, Block]]] = {}
+        self.link_title_cache: Dict[str, Optional[str]] = {}
 
         # order 序列号
         self.last_order_seq = 1
@@ -487,6 +488,11 @@ class DocumentParser:
             # 回退：使用 token 作为标识
             return f"📎 {file_name} (token: `{file_token}`)"
 
+        if bt == BlockType.LINK_PREVIEW:
+            if not block.link_preview:
+                return ""
+            return self._render_reference_link(block.link_preview.url, block_title=None, as_block=True)
+
         return ""
 
     def _render_text_payload(self, payload) -> str:
@@ -517,14 +523,78 @@ class DocumentParser:
                 user_name = self.sdk.contact.get_user_name(el.mention_user.user_id, self.user_access_token)
                 text = f"@{user_name}"
             elif el.mention_doc:
-                text = f"[{el.mention_doc.token}]"
+                title = el.mention_doc.title or el.mention_doc.token
+                text = self._render_reference_link(el.mention_doc.url, block_title=title)
             elif el.equation:
                 text = f"${el.equation.content}$"
             elif el.link_preview:
-                text = f"[{el.link_preview.url}]"
+                text = self._render_reference_link(el.link_preview.url, block_title=el.link_preview.title)
 
             result.append(text)
         return "".join(result)
+
+    @staticmethod
+    def _is_feishu_doc_url(url: str) -> bool:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        return any(domain in host for domain in ("feishu.cn", "larksuite.cn", "larkoffice.com"))
+
+    def _resolve_link_title(self, url: str) -> Optional[str]:
+        if url in self.link_title_cache:
+            return self.link_title_cache[url]
+
+        if not self._is_feishu_doc_url(url):
+            self.link_title_cache[url] = None
+            return None
+
+        try:
+            parsed = urlparse(url)
+            parts = [part for part in parsed.path.split("/") if part]
+            if len(parts) < 2:
+                self.link_title_cache[url] = None
+                return None
+
+            kind, token = parts[-2], parts[-1]
+            title: Optional[str] = None
+
+            if kind in ("doc", "docx"):
+                info = self.sdk.docx.get_document_info(token, self.user_access_token)
+                title = info.get("title")
+            elif kind in ("sheet", "sheets"):
+                info = self.sdk.sheet.get_spreadsheet_info(token, self.user_access_token)
+                title = info.get("title")
+            elif kind == "base":
+                info = self.sdk.bitable.get_bitable_info(token, self.user_access_token)
+                title = info.get("title")
+            elif kind == "wiki":
+                node = self.sdk.wiki.get_node_metadata(token, self.user_access_token)
+                title = getattr(node, "title", None)
+
+            self.link_title_cache[url] = title
+            return title
+        except Exception:
+            self.link_title_cache[url] = None
+            return None
+
+    def _render_reference_link(
+            self,
+            url: Optional[str],
+            block_title: Optional[str] = None,
+            *,
+            as_block: bool = False,
+    ) -> str:
+        title = (block_title or "").strip()
+        link_url = unquote((url or "").strip())
+
+        if link_url:
+            resolved_title = title or self._resolve_link_title(link_url) or link_url
+            rendered = f"[{resolved_title}]({link_url})"
+        else:
+            rendered = title
+
+        if as_block and rendered:
+            return f"> Link: {rendered}"
+        return rendered
 
     def _render_table(self, table_block: Block, block_lookup: Optional[Dict[str, Block]] = None) -> str:
         """渲染表格 Block"""
